@@ -28,7 +28,7 @@ type CreatePRRequest struct {
 }
 
 type PullRequest struct {
-	ID int64 `yaml:"id"`
+	ID int64 `json:"id"`
 }
 
 func CreatePR(r *CreatePRRequest) (*PullRequest, error) {
@@ -118,7 +118,7 @@ func MrHandler(ctx *AppCtx, argv []string) error {
 	}
 
 	fmt.Printf("Credated MR @ %s/%s/%s/pulls/%d\n",
-		ctx.Config.ToRepoApiUrl(),
+		ctx.Config.RepoInfo.RepoUrl,
 		repoOwner, repoName,
 		pr.ID)
 
