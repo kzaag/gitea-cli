@@ -14,24 +14,25 @@ type TokenRequestBody struct {
 	TokenName string `json:"name"`
 }
 
-type Credentials struct {
+type TokenRequest struct {
 	Username string
 	Password string
 	TokenRequestBody
+	RepoInfo
 }
 
-func (c *Credentials) ToBasicAuth() string {
+func (c *TokenRequest) ToBasicAuth() string {
 	resFmt := "Basic %s"
 	str := fmt.Sprintf("%s:%s", c.Username, c.Password)
 	base64 := base64.StdEncoding.EncodeToString([]byte(str))
 	return fmt.Sprintf(resFmt, base64)
 }
 
-func (c *Credentials) Validate() error {
+func (c *TokenRequest) Validate() error {
 	if c.Username == "" || c.Password == "" {
 		return fmt.Errorf("invalid username or password")
 	}
-	return nil
+	return c.RepoInfo.Validate()
 }
 
 const charset = "qwertyuiopasdfghjklzxcvbnm"
@@ -54,7 +55,7 @@ func randStr(l int) string {
 // fill credentials object from CLI [user input]
 // fileds already provided wont be filled
 // you dont need to call c.Validate afer this function
-func (c *Credentials) FillFromConsole() error {
+func (c *TokenRequest) FillFromConsole() error {
 
 	fd := unix.Stdin
 	const TCSANOW = 0
@@ -96,6 +97,15 @@ func (c *Credentials) FillFromConsole() error {
 		}
 	}
 
+	if c.RepoInfo.RepoUrl == "" {
+		fmt.Print("repo url (https://your.repo.com/relative/path): ")
+		fmt.Scanln(&c.RepoInfo.RepoUrl)
+	}
+
+	if c.RepoInfo.ApiVer == "" {
+		c.RepoInfo.ApiVer = "v1"
+	}
+
 	return c.Validate()
 }
 
@@ -106,19 +116,19 @@ type Token struct {
 	TokenLastEight string `json:"token_last_eight"`
 }
 
-func (c *Credentials) GetToken() (*Token, error) {
+func (c *TokenRequest) GetToken() (*Token, error) {
 	token := new(Token)
 	const m = "POST"
 	hdr := make(http.Header)
 	hdr.Add("Authorization", c.ToBasicAuth())
-	var u = fmt.Sprintf("%s/users/%s/tokens", RepoApiUrl, c.Username)
+	var u = fmt.Sprintf("%s/users/%s/tokens", c.RepoInfo.ToRepoApiUrl(), c.Username)
 	return token, GiteaRequest(m, u, &c.TokenRequestBody, token, hdr, 201)
 }
 
-func (c *Credentials) DeleteToken(name string) error {
+func (c *TokenRequest) DeleteToken(name string) error {
 	const m = "DELETE"
 	hdr := make(http.Header)
 	hdr.Add("Authorization", c.ToBasicAuth())
-	var u = fmt.Sprintf("%s/users/%s/tokens/%s", RepoApiUrl, c.Username, name)
+	var u = fmt.Sprintf("%s/users/%s/tokens/%s", c.RepoInfo.ToRepoApiUrl(), c.Username, name)
 	return GiteaRequest(m, u, nil, nil, hdr, 204)
 }

@@ -11,7 +11,7 @@ func DelLocalConfig(ctx *AppCtx) error {
 	if ctx.Config == nil {
 		return fmt.Errorf("delete config: config not found")
 	}
-	var c Credentials
+	var c TokenRequest
 	c.TokenName = ctx.Config.TokenName
 	c.Username = ctx.Config.Username
 	if err := c.FillFromConsole(); err != nil {
@@ -24,7 +24,7 @@ func DelLocalConfig(ctx *AppCtx) error {
 }
 
 func NewLocalConfig(ctx *AppCtx) error {
-	var c Credentials
+	var c TokenRequest
 	if err := c.FillFromConsole(); err != nil {
 		return err
 	}
@@ -38,11 +38,14 @@ func NewLocalConfig(ctx *AppCtx) error {
 	conf.TokenName = t.Name
 	conf.TokenSha1 = t.Sha1
 	conf.Username = c.Username
+	conf.RepoInfo = c.RepoInfo
 
 	fmt.Print("Default repo owner: [empty if none]: ")
 	fmt.Scanln(&conf.DefaultRepoOwner)
 	fmt.Print("Default repo name: [empty if none]: ")
 	fmt.Scanln(&conf.DefaultRepoName)
+	fmt.Print("Default base branch: [empty if none]: ")
+	fmt.Scanln(&conf.DefaultBaseForMr)
 
 	fp, err := os.OpenFile("gitea.yml", os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
