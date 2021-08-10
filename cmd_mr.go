@@ -28,7 +28,7 @@ type CreatePRRequest struct {
 }
 
 type PullRequest struct {
-	ID int64 `json:"id"`
+	Url string `json:"url"`
 }
 
 func CreatePR(r *CreatePRRequest) (*PullRequest, error) {
@@ -37,7 +37,7 @@ func CreatePR(r *CreatePRRequest) (*PullRequest, error) {
 	hdr.Add("Authorization", "token "+r.Token)
 	var u = fmt.Sprintf("%s/repos/%s/%s/pulls", r.ApiUrl, r.Owner, r.Repo)
 	var res = new(PullRequest)
-	return res, GiteaRequest(m, u, &r.Opt, r, hdr, 201)
+	return res, GiteaRequest(m, u, &r.Opt, res, hdr, 201)
 }
 
 func MrHandler(ctx *AppCtx, argv []string) error {
@@ -117,10 +117,7 @@ func MrHandler(ctx *AppCtx, argv []string) error {
 		return err
 	}
 
-	fmt.Printf("Credated MR @ %s/%s/%s/pulls/%d\n",
-		ctx.Config.RepoInfo.RepoUrl,
-		repoOwner, repoName,
-		pr.ID)
+	fmt.Printf("Credated MR @ %s\n", pr.Url)
 
 	return nil
 }
