@@ -1,6 +1,6 @@
 build:
-	go build -o gops
+	go build -o gitops
 
 
 install: build
-	sudo cp gops /usr/local/bin/;
+	sudo cp gitops /usr/local/bin/;
