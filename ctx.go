@@ -112,10 +112,10 @@ func NewCtx() (*AppCtx, error) {
 			Desc:    "list available commands",
 			Handler: HelpHandler,
 		},
-		"mr": {
-			Name:    "mr",
-			Desc:    "manage merge requests",
-			Handler: MrHandler,
+		"pr": {
+			Name:    "pr",
+			Desc:    "manage PRs",
+			Handler: PRHandler,
 		},
 	}
 	return ctx, nil

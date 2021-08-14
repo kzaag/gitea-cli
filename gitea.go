@@ -49,12 +49,14 @@ func GiteaRequest(m, u string, req, res interface{}, hdr http.Header, ec int) er
 	if err != nil {
 		return err
 	}
+
+	defer httpRes.Body.Close()
+
 	if httpRes.StatusCode != ec {
 		var msgFmt = "invalid status code, expected %d got %d;\n%s"
 		var msgB []byte
 		var msg string
 		if httpRes.Body != nil {
-			defer httpRes.Body.Close()
 			msgB, err = ioutil.ReadAll(httpRes.Body)
 			if err != nil {
 				return err
@@ -67,12 +69,11 @@ func GiteaRequest(m, u string, req, res interface{}, hdr http.Header, ec int) er
 	}
 
 	if res == nil {
-		httpRes.Body.Close()
 		return nil
 	}
 
 	bt, err := ioutil.ReadAll(httpRes.Body)
-	httpRes.Body.Close()
+	//fmt.Println(string(bt))
 	if err != nil {
 		return err
 	}
