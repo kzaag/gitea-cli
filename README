@@ -1,0 +1,5 @@
+gitea-cli
+
+small gitea cli which can be used to
+- obtain and store gitea tokens, persist configs in yml
+- create, list, merge Pull requests
