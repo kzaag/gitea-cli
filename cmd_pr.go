@@ -190,9 +190,9 @@ func MergePR(ctx *AppCtx) error {
 
 	req.Index = pr.Number
 
-	// if err := GiteaMergePR(&req); err != nil {
-	// 	return err
-	// }
+	if err := GiteaMergePR(&req); err != nil {
+		return err
+	}
 
 	fmt.Println(pr.Url)
 
