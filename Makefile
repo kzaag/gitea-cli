@@ -1,6 +1,5 @@
 build:
-	go build -o gitops
-
+	go build -o gitea
 
 install: build
-	sudo cp gitops /usr/local/bin/;
+	sudo cp gitea /usr/local/bin/;
