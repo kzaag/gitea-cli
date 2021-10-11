@@ -1,9 +1,10 @@
-package main
+package gitea
 
 import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"gitea-cli/config"
 	"math/big"
 	"net/http"
 
@@ -18,7 +19,7 @@ type TokenRequest struct {
 	Username string
 	Password string
 	TokenRequestBody
-	RepoInfo
+	config.RepoInfo
 }
 
 func (c *TokenRequest) ToBasicAuth() string {
@@ -98,7 +99,7 @@ func (c *TokenRequest) FillFromConsole() error {
 	}
 
 	if c.RepoInfo.RepoUrl == "" {
-		fmt.Print("repo url (https://your.repo.com/relative/path): ")
+		fmt.Print("gitea server url (https://gitea.com/relative/path): ")
 		fmt.Scanln(&c.RepoInfo.RepoUrl)
 	}
 

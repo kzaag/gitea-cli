@@ -1,17 +1,19 @@
-package main
+package cmd
 
 import (
 	"fmt"
+	"gitea-cli/config"
+	"gitea-cli/gitea"
 	"os"
 
-	"gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v2"
 )
 
-func DelLocalConfig(ctx *AppCtx) error {
+func DelLocalConfig(ctx *CmdCtx) error {
 	if ctx.Config == nil {
 		return fmt.Errorf("delete config: config not found")
 	}
-	var c TokenRequest
+	var c gitea.TokenRequest
 	c.TokenName = ctx.Config.TokenName
 	c.Username = ctx.Config.Username
 	if err := c.FillFromConsole(); err != nil {
@@ -23,8 +25,8 @@ func DelLocalConfig(ctx *AppCtx) error {
 	return os.Remove("gitea.yml")
 }
 
-func NewLocalConfig(ctx *AppCtx) error {
-	var c TokenRequest
+func NewLocalConfig(ctx *CmdCtx) error {
+	var c gitea.TokenRequest
 	if err := c.FillFromConsole(); err != nil {
 		return err
 	}
@@ -34,7 +36,7 @@ func NewLocalConfig(ctx *AppCtx) error {
 	}
 	fmt.Printf("Created gitea token with name: %s\n", t.Name)
 
-	var conf Config
+	var conf config.Config
 	conf.TokenName = t.Name
 	conf.TokenSha1 = t.Sha1
 	conf.Username = c.Username
@@ -65,38 +67,41 @@ func NewLocalConfig(ctx *AppCtx) error {
 	return nil
 }
 
-func ConfigHandler(ctx *AppCtx, argv []string) error {
-	cmd := ""
-	if len(argv) < 2 {
-		cmd = "new"
-	}
+func printConfigHelp() {
+	fmt.Println(GetHelpStr([]NameWithDesc{
+		{
+			Name: "help",
+			Desc: "prints info",
+		},
+		{
+			Name: "new",
+			Desc: "[default]. create config and save it for later use",
+		},
+		{
+			Name: "del",
+			Desc: "delete and remove config",
+		},
+	}))
+}
 
-	if cmd == "" {
-		cmd = argv[1]
+func ConfigCmd(ctx *CmdCtx, argv []string) error {
+	cmd := ""
+	if len(argv) == 0 {
+		cmd = "new"
+	} else {
+		cmd = argv[0]
 	}
 
 	switch cmd {
 	case "help":
-		fmt.Println(GetHelpStr([]NameDesc{
-			{
-				Name: "help",
-				Desc: "prints info",
-			},
-			{
-				Name: "new",
-				Desc: "[default]. create config and save it for later use",
-			},
-			{
-				Name: "del",
-				Desc: "delete and remove config",
-			},
-		}))
+		printConfigHelp()
 	case "new":
 		return NewLocalConfig(ctx)
 	case "del":
 		return DelLocalConfig(ctx)
 	default:
-		return fmt.Errorf("Token: '%s' not found, Use 'token help' to list available commands", argv[1])
+		printConfigHelp()
+		return fmt.Errorf("ConfigCmd: '%s' not found", cmd)
 	}
 
 	return nil

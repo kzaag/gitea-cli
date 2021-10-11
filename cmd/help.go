@@ -1,12 +1,12 @@
-package main
+package cmd
 
 import "fmt"
 
-func HelpHandler(ctx *AppCtx, argv []string) error {
-	nd := make([]NameDesc, len(ctx.Commands))
+func HelpCmd(ctx *CmdCtx, argv []string) error {
+	nd := make([]NameWithDesc, len(ctx.Commands))
 	i := 0
 	for x := range ctx.Commands {
-		nd[i] = NameDesc{
+		nd[i] = NameWithDesc{
 			Name: x,
 			Desc: ctx.Commands[x].Desc,
 		}
