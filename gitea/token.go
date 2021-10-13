@@ -1,14 +1,10 @@
 package gitea
 
 import (
-	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"gitea-cli/config"
-	"math/big"
 	"net/http"
-
-	"golang.org/x/sys/unix"
 )
 
 type TokenRequestBody struct {
@@ -34,80 +30,6 @@ func (c *TokenRequest) Validate() error {
 		return fmt.Errorf("invalid username or password")
 	}
 	return c.RepoInfo.Validate()
-}
-
-const charset = "qwertyuiopasdfghjklzxcvbnm"
-
-var maxInt = big.NewInt(100000)
-
-// may panic
-func randStr(l int) string {
-	res := make([]byte, l)
-	for i := 0; i < l; i++ {
-		x, err := rand.Int(rand.Reader, maxInt)
-		if err != nil {
-			panic(err)
-		}
-		res[i] = charset[x.Int64()%int64(len(charset))]
-	}
-	return string(res)
-}
-
-// fill credentials object from CLI [user input]
-// fileds already provided wont be filled
-// you dont need to call c.Validate afer this function
-func (c *TokenRequest) FillFromConsole() error {
-
-	fd := unix.Stdin
-	const TCSANOW = 0
-
-	if c.Username == "" {
-		fmt.Print("Your gitea username: ")
-		fmt.Scanln(&c.Username)
-	}
-
-	if c.Password == "" {
-		s, err := unix.IoctlGetTermios(fd, unix.TCGETS)
-		if err != nil {
-			return err
-		}
-		s.Lflag &^= unix.ECHO
-		if err := unix.IoctlSetTermios(fd, unix.TCSETS, s); err != nil {
-			return err
-		}
-
-		fmt.Print("Your gitea password: ")
-		fmt.Scanln(&c.Password)
-		fmt.Println()
-
-		s, err = unix.IoctlGetTermios(fd, unix.TCGETS)
-		if err != nil {
-			return err
-		}
-		s.Lflag |= unix.ECHO
-		if err := unix.IoctlSetTermios(fd, unix.TCSETS, s); err != nil {
-			return err
-		}
-	}
-
-	if c.TokenName == "" {
-		fmt.Print("Token name (empty for rand): ")
-		fmt.Scanln(&c.TokenName)
-		if c.TokenName == "" {
-			c.TokenName = randStr(8)
-		}
-	}
-
-	if c.RepoInfo.RepoUrl == "" {
-		fmt.Print("gitea server url (https://gitea.com/relative/path): ")
-		fmt.Scanln(&c.RepoInfo.RepoUrl)
-	}
-
-	if c.RepoInfo.ApiVer == "" {
-		c.RepoInfo.ApiVer = "v1"
-	}
-
-	return c.Validate()
 }
 
 type Token struct {

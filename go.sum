@@ -1,3 +1,5 @@
+github.com/kzaag/gnuflag v0.0.0-20211012031830-c6c0956ab13e h1:ItR2ddU7qIRF6hCw0E5+HXIJ2xkCJPL8PnN2F8g4D+c=
+github.com/kzaag/gnuflag v0.0.0-20211012031830-c6c0956ab13e/go.mod h1:IRef+/vtNLWy67nS2fSYoLBpmL61Qi/7RbtQsQRyDxg=
 golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e h1:WUoyKPm6nCo1BnNUvPGnFG3T5DUVem42yDJZZ4CNxMA=
 golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
