@@ -15,7 +15,7 @@ type TokenRequest struct {
 	Username string
 	Password string
 	TokenRequestBody
-	common.GiteaRepoInfo
+	common.RemoteInfo
 }
 
 func (c *TokenRequest) ToBasicAuth() string {
@@ -29,7 +29,7 @@ func (c *TokenRequest) Validate() error {
 	if c.Username == "" || c.Password == "" {
 		return fmt.Errorf("invalid username or password")
 	}
-	return c.GiteaRepoInfo.Validate()
+	return c.RemoteInfo.Validate()
 }
 
 type Token struct {
@@ -44,14 +44,14 @@ func (c *TokenRequest) GetToken() (*Token, error) {
 	const m = "POST"
 	hdr := make(http.Header)
 	hdr.Add("Authorization", c.ToBasicAuth())
-	var u = fmt.Sprintf("%s/users/%s/tokens", c.GiteaRepoInfo.ToRepoApiUrl(), c.Username)
+	var u = fmt.Sprintf("%s/users/%s/tokens", c.RemoteInfo.ToApiUrl(), c.Username)
 	return token, common.HttpRequest(m, u, &c.TokenRequestBody, token, hdr, 201)
 }
 
-func (c *TokenRequest) DeleteToken(name string) error {
+func (c *TokenRequest) DeleteToken() error {
 	const m = "DELETE"
 	hdr := make(http.Header)
 	hdr.Add("Authorization", c.ToBasicAuth())
-	var u = fmt.Sprintf("%s/users/%s/tokens/%s", c.GiteaRepoInfo.ToRepoApiUrl(), c.Username, name)
+	var u = fmt.Sprintf("%s/users/%s/tokens/%s", c.RemoteInfo.ToApiUrl(), c.Username, c.TokenName)
 	return common.HttpRequest(m, u, nil, nil, hdr, 204)
 }

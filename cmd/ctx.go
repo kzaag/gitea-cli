@@ -22,6 +22,13 @@ type CmdCtx struct {
 	Config      *common.Config
 }
 
+func (ctx *CmdCtx) ValidateConfig(withCred bool) error {
+	if ctx.Config == nil {
+		return fmt.Errorf("config is nil")
+	}
+	return ctx.Config.Validate(withCred)
+}
+
 type commandPathInfo struct {
 	Path    string
 	Command *Command
@@ -123,26 +130,12 @@ func NewCtx() (*CmdCtx, error) {
 
 	fc, err := ioutil.ReadFile("gitea.yml")
 	if err != nil {
-		if !os.IsNotExist(err) {
-			return nil, err
-		}
+		return nil, err
 	} else {
-		cnf := new(common.Config)
-		if err := yaml.Unmarshal(fc, cnf); err != nil {
+		ctx.Config = new(common.Config)
+		if err := yaml.Unmarshal(fc, ctx.Config); err != nil {
 			return nil, err
 		}
-		if err := cnf.Validate(); err != nil {
-			fmt.Println(err)
-			fmt.Println("Your config is out of date. You should create it again")
-			fmt.Print("Continue anyway? y/n ")
-			var x string
-			fmt.Scanln(&x)
-			if x != "y" {
-				return nil, err
-			}
-		}
-		//fmt.Printf("Using config for user %s\n", cnf.Username)
-		ctx.Config = cnf
 	}
 
 	root := Branch{}
@@ -152,15 +145,25 @@ func NewCtx() (*CmdCtx, error) {
 		Handler: ctx.HelpCommand,
 	}, "help")
 	root.AddChainStrictOrder(&Command{
-		Desc:    "Delete local config with its token.",
-		Handler: ctx.RmConfigCommand,
-		Opts:    ctx.getRmConfigOpts(),
-	}, "rm", "config")
+		Desc:    "Create new gitea credentials.",
+		Handler: ctx.NewGiteaCredCommand,
+		Opts:    newGiteaCredOpts(),
+	}, "new", "g", "cred")
 	root.AddChainStrictOrder(&Command{
-		Desc:    "Create new common.",
-		Handler: ctx.NewConfigCommand,
-		Opts:    newConfigOpts(ctx.Config),
-	}, "new", "config")
+		Desc:    "Create new rocketchat credentials.",
+		Handler: ctx.NewRocketCredCommand,
+		Opts:    ctx.newRocketCredOpts(true),
+	}, "new", "r", "cred")
+	root.AddChainStrictOrder(&Command{
+		Desc:    "Create new credentials.",
+		Handler: ctx.NewCredCommand,
+		Opts:    ctx.newCredOpts(),
+	}, "new", "cred")
+	root.AddChainStrictOrder(&Command{
+		Desc:    "Remove credentials.",
+		Handler: ctx.RmCredCommand,
+		Opts:    ctx.getRmCredOpts(),
+	}, "rm", "cred")
 	root.AddChainStrictOrder(&Command{
 		Desc:    "Create new pull request.",
 		Handler: ctx.NewPrCommand,

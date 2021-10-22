@@ -1,0 +1,24 @@
+gitea:
+  token_sha1:
+  token_name:
+
+  default_repo_name:
+  default_repo_owner:
+
+  default_base_for_pr: master
+
+  remote_info:
+    api_ver: v1
+    base_url: https://
+
+rocketchat:
+  enabled: false
+
+  user_id:
+  token: 
+
+  default_notify_channel: 
+
+  remote_info:
+    api_ver: v1
+    base_url: https://

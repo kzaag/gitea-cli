@@ -3,7 +3,6 @@ package rocketchat
 import (
 	"fmt"
 	"gitea-cli/common"
-	"net/http"
 )
 
 type LoginRequest struct {
@@ -15,15 +14,15 @@ type LoginResponse struct {
 	Status string `json:"status"`
 	Data   struct {
 		AuthToken string `json:"authToken"`
+		UserID    string `json:"userId"`
 	} `json:"data"`
 	Message string `json:"message,omitempty"`
 }
 
-func Login(r *common.RocketchatInfo, req *LoginRequest) (*LoginResponse, error) {
+func Login(r *common.RemoteInfo, req *LoginRequest) (*LoginResponse, error) {
 	res := new(LoginResponse)
-	hdr := make(http.Header)
-	var u = fmt.Sprintf("%s/login", r.ToServiceUrl())
-	if err := common.HttpRequest("POST", u, req, res, hdr, 200); err != nil {
+	var u = fmt.Sprintf("%s/login", r.ToApiUrl())
+	if err := common.HttpRequest("POST", u, req, res, nil, 200); err != nil {
 		return nil, err
 	}
 	if res.Status != "success" {

@@ -8,312 +8,10 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-
-	"gopkg.in/yaml.v2"
 )
 
 func (ctx *CmdCtx) HelpCommand() error {
 	ctx.PrintCommands()
-	return nil
-}
-
-func (ctx *CmdCtx) getRmConfigOpts() []CmdOpt {
-	s := ""
-	if ctx.Config != nil {
-		s = fmt.Sprintf("Password for %s @ %s", ctx.Config.Username, ctx.Config.RepoUrl)
-	} else {
-		s = "Password for your gitea user"
-	}
-	return []CmdOpt{
-		{
-			Spec: CmdOptSpec{
-				Label:    s,
-				Optional: false,
-				NoEcho:   true,
-				IsBool:   false,
-			},
-		},
-	}
-}
-
-func (ctx *CmdCtx) RmConfigCommand() error {
-	if ctx.Config == nil {
-		return fmt.Errorf("delete config: config not found")
-	}
-
-	opts := ctx.getRmConfigOpts()
-	GetOpts(os.Args[1:], opts)
-
-	c := gitea.TokenRequest{
-		Username: ctx.Config.Username,
-		Password: opts[0].Val.Str,
-		TokenRequestBody: gitea.TokenRequestBody{
-			TokenName: ctx.Config.TokenName,
-		},
-		GiteaRepoInfo: ctx.Config.GiteaRepoInfo,
-	}
-	if err := c.DeleteToken(ctx.Config.TokenName); err != nil {
-		return err
-	}
-	return os.Remove("gitea.yml")
-}
-
-func newConfigOpts(c *common.Config) []CmdOpt {
-
-	var (
-		username, url, tn, ver, repo, owner, base, rocketver, rocketurl string
-		rocketchatUID, rocketchatNotifyChan                             string
-	)
-
-	if c == nil {
-		c = &common.Config{}
-	}
-
-	if c.Username != "" {
-		username = fmt.Sprintf(" [empty for '%s']", c.Username)
-	}
-	if c.RepoUrl != "" {
-		url = fmt.Sprintf(" [empty for '%s']", c.RepoUrl)
-	}
-	if c.TokenName != "" {
-		tn = fmt.Sprintf(" [empty for '%s']", c.TokenName)
-	} else {
-		tn = " [empty for rand]"
-	}
-	if c.GiteaRepoInfo.ApiVer != "" {
-		ver = fmt.Sprintf(" [empty for '%s']", c.GiteaRepoInfo.ApiVer)
-	} else {
-		ver = " empty for 'v1'"
-	}
-	if c.DefaultRepoOwner != "" {
-		owner = fmt.Sprintf(" [empty for '%s']", c.DefaultRepoOwner)
-	}
-	if c.DefaultRepoName != "" {
-		repo = fmt.Sprintf(" [empty for '%s']", c.DefaultRepoName)
-	}
-	if c.DefaultBaseForMr != "" {
-		base = fmt.Sprintf(" [empty for '%s']", c.DefaultBaseForMr)
-	}
-	if c.RocketchatInfo.ApiVer != "" {
-		rocketver = fmt.Sprintf(" [empty for '%s']", c.RocketchatInfo.ApiVer)
-	} else {
-		ver = " empty for 'v1'"
-	}
-	if c.RocketchatInfo.BaseUrl != "" {
-		rocketurl = fmt.Sprintf(" [empty for '%s']", c.RocketchatInfo.BaseUrl)
-	}
-	if c.RocketchatNotifyChannel != "" {
-		rocketchatNotifyChan = fmt.Sprintf(" [empty for '%s']", c.RocketchatNotifyChannel)
-	}
-	if c.RocketchatUserID != "" {
-		rocketchatUID = fmt.Sprintf(" [empty for '%s']", c.RocketchatUserID)
-	}
-
-	return []CmdOpt{
-		{ // 0
-			Spec: CmdOptSpec{
-				ArgFlags: []string{"u", "username"},
-				Label:    "Your gitea username" + username,
-				Optional: username != "",
-				DefaultStrFunc: func() (string, error) {
-					return c.Username, nil
-				},
-			},
-		}, { // 1
-			Spec: CmdOptSpec{
-				Label:    "Your gitea password",
-				NoEcho:   true,
-				NoPrompt: c.TokenSha1 != "",
-			},
-		}, { // 2
-			Spec: CmdOptSpec{
-				ArgFlags: []string{"g", "gitea"},
-				Label:    "Gitea server url" + url,
-				Optional: url != "",
-				DefaultStrFunc: func() (string, error) {
-					return c.RepoUrl, nil
-				},
-			},
-		}, { // 3
-			Spec: CmdOptSpec{
-				ArgFlags: []string{"n", "name"},
-				Label:    "Token name" + tn,
-				DefaultStrFunc: func() (string, error) {
-					if c.TokenName != "" {
-						return c.TokenName, nil
-					}
-					return randStr(8), nil
-				},
-				Optional: true,
-			},
-		}, { // 4
-			Spec: CmdOptSpec{
-				ArgFlags: []string{"V", "apiver"},
-				Label:    "Gitea api version" + ver,
-				NoPrompt: true,
-				Optional: true,
-				DefaultStrFunc: func() (string, error) {
-					if c.GiteaRepoInfo.ApiVer != "" {
-						return c.GiteaRepoInfo.ApiVer, nil
-					}
-					return "v1", nil
-				},
-			},
-		}, { // 5
-			Spec: CmdOptSpec{
-				ArgFlags: []string{"o", "owner"},
-				Label:    "Default repo owner (used in PRs)" + owner,
-				Optional: true,
-				DefaultStrFunc: func() (string, error) {
-					return c.DefaultRepoOwner, nil
-				},
-			},
-		}, { // 6
-			Spec: CmdOptSpec{
-				ArgFlags: []string{"r", "repo"},
-				Label:    "Default repo name (used in PRs)" + repo,
-				Optional: true,
-				DefaultStrFunc: func() (string, error) {
-					return c.DefaultRepoName, nil
-				},
-			},
-		}, { // 7
-			Spec: CmdOptSpec{
-				ArgFlags: []string{"b", "base"},
-				Label:    "Default base branch (target branch in PRs)" + base,
-				Optional: true,
-				DefaultStrFunc: func() (string, error) {
-					return c.DefaultBaseForMr, nil
-				},
-			},
-		}, { // 8
-			Spec: CmdOptSpec{
-				ArgFlags: []string{"p", "path"},
-				Label:    "Config path [empty for ./gitea.yml]",
-				NoPrompt: true,
-				DefaultStrFunc: func() (string, error) {
-					return "./gitea.yml", nil
-				},
-				Optional: true,
-			},
-		}, { // 9
-			Spec: CmdOptSpec{
-				ArgFlags: []string{"--rocketver"},
-				Label:    "rocketchat api version" + rocketver,
-				DefaultStrFunc: func() (string, error) {
-					if c.RocketchatInfo.ApiVer != "" {
-						return c.RocketchatInfo.ApiVer, nil
-					}
-					return "v1", nil
-				},
-				Optional: true,
-			},
-		}, { // 10
-			Spec: CmdOptSpec{
-				ArgFlags: []string{"rocketurl"},
-				Label:    "Rocketchat server url" + rocketurl,
-				Optional: rocketurl != "",
-				DefaultStrFunc: func() (string, error) {
-					return c.RocketchatInfo.BaseUrl, nil
-				},
-			},
-		}, { // 11
-			Spec: CmdOptSpec{
-				ArgFlags: []string{"rocketuid"},
-				Label:    "Rocketchat user id" + rocketchatUID,
-				Optional: rocketurl != "",
-				DefaultStrFunc: func() (string, error) {
-					return c.RocketchatUserID, nil
-				},
-			},
-		}, { // 12
-			Spec: CmdOptSpec{
-				ArgFlags: []string{"rocketchan"},
-				Label:    "Rocketchat default notification channel" + rocketchatNotifyChan,
-				Optional: rocketurl != "",
-				DefaultStrFunc: func() (string, error) {
-					return c.RocketchatNotifyChannel, nil
-				},
-			},
-		},
-	}
-}
-
-func (ctx *CmdCtx) NewConfigCommand() error {
-
-	newConfigOpts := newConfigOpts(ctx.Config)
-	GetOpts(os.Args[1:], newConfigOpts)
-
-	tr := gitea.TokenRequest{
-		Username: newConfigOpts[0].Val.Str,
-		Password: newConfigOpts[1].Val.Str,
-		GiteaRepoInfo: common.GiteaRepoInfo{
-			ApiVer:  newConfigOpts[4].Val.Str,
-			RepoUrl: newConfigOpts[2].Val.Str,
-		},
-		TokenRequestBody: gitea.TokenRequestBody{
-			TokenName: newConfigOpts[3].Val.Str,
-		},
-	}
-
-	var token *gitea.Token
-	// if token already exists - dont recreate it
-	if ctx.Config == nil || ctx.Config.TokenSha1 == "" {
-		var err error
-		token, err = tr.GetToken()
-		if err != nil {
-			return err
-		}
-		fmt.Printf("Created gitea token with name: %s\n", token.Name)
-	} else {
-		token = &gitea.Token{
-			Sha1: ctx.Config.TokenSha1,
-			Name: ctx.Config.TokenName,
-		}
-		fmt.Printf("Using gitea token with name: %s\n", token.Name)
-	}
-
-	rocketchatInfo := common.RocketchatInfo{
-		ApiVer:  newConfigOpts[9].Val.Str,
-		BaseUrl: newConfigOpts[10].Val.Str,
-	}
-
-	if rocketchatInfo.IsValid() && (ctx.Config == nil || ctx.Config.RocketchatToken == "") {
-		res, err := rocketchat.Login(&rocketchatInfo, &rocketchat.LoginRequest{
-			User:     "",
-			Password: "",
-		})
-	}
-
-	conf := common.Config{
-		TokenSha1:               token.Sha1,
-		TokenName:               token.Name,
-		Username:                tr.Username,
-		DefaultRepoName:         newConfigOpts[6].Val.Str,
-		DefaultRepoOwner:        newConfigOpts[5].Val.Str,
-		DefaultBaseForMr:        newConfigOpts[7].Val.Str,
-		GiteaRepoInfo:           tr.GiteaRepoInfo,
-		RocketchatInfo:          rocketchatInfo,
-		RocketchatUserID:        "",
-		RocketchatToken:         "",
-		RocketchatNotifyChannel: "",
-	}
-
-	fp, err := os.OpenFile(newConfigOpts[8].Val.Str, os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer fp.Close()
-
-	b, err := yaml.Marshal(&conf)
-	if err != nil {
-		return err
-	}
-
-	if _, err := fp.Write(b); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -362,26 +60,19 @@ func repoInfoOpts(config *common.Config) []CmdOpt {
 
 	// 0
 	def = ""
-	if config != nil && config.DefaultRepoOwner != "" {
-		def = config.DefaultRepoOwner
+	if config != nil && config.Gitea.DefaultRepoOwner != "" {
+		def = config.Gitea.DefaultRepoOwner
 	}
 	ret = append(ret, addOptWithDefaultVal("repo owner ", "", []string{"o", "owner"}, def))
 
 	// 1
 	def = ""
-	if config != nil && config.DefaultRepoName != "" {
-		def = config.DefaultRepoName
+	if config != nil && config.Gitea.DefaultRepoName != "" {
+		def = config.Gitea.DefaultRepoName
 	}
 	ret = append(ret, addOptWithDefaultVal("repo name  ", "", []string{"r", "repo"}, def))
 
 	return ret
-}
-
-func (ctx *CmdCtx) hasConfig() error {
-	if ctx.Config == nil {
-		return fmt.Errorf("config not found. Execute '%s new config' to create config", os.Args[0])
-	}
-	return nil
 }
 
 func listPrOpts(config *common.Config) []CmdOpt {
@@ -389,7 +80,7 @@ func listPrOpts(config *common.Config) []CmdOpt {
 }
 
 func (ctx *CmdCtx) ListPrCommand() error {
-	if err := ctx.hasConfig(); err != nil {
+	if err := ctx.ValidateConfig(true); err != nil {
 		return err
 	}
 
@@ -401,10 +92,10 @@ func (ctx *CmdCtx) ListPrCommand() error {
 	repo := opts[1].Val.Str
 
 	repoCtx := gitea.RepoCtx{
-		Token:  ctx.Config.TokenSha1,
+		Token:  ctx.Config.Gitea.TokenSha1,
 		Owner:  owner,
 		Repo:   repo,
-		ApiUrl: ctx.Config.ToRepoApiUrl(),
+		ApiUrl: ctx.Config.Gitea.ToApiUrl(),
 	}
 
 	req := gitea.ListPRRequest{}
@@ -441,8 +132,8 @@ func newPrOpts(c *common.Config) []CmdOpt {
 
 	// 3
 	def = ""
-	if c != nil && c.DefaultBaseForMr != "" {
-		def = c.DefaultBaseForMr
+	if c != nil && c.Gitea.DefaultBaseForPR != "" {
+		def = c.Gitea.DefaultBaseForPR
 	}
 	ret = append(ret, addOptWithDefaultVal("base branch", "target branch in PR", []string{"b", "base"}, def))
 
@@ -469,11 +160,25 @@ func newPrOpts(c *common.Config) []CmdOpt {
 		},
 	})
 
+	// 7
+	optional := !c.Rocketchat.Enabled || c.Rocketchat.DefaultNotifyChannel != ""
+	ret = append(ret, CmdOpt{
+		Spec: CmdOptSpec{
+			ArgFlags: []string{"notify"},
+			Label:    "Notification channel for rocketchat",
+			NoPrompt: optional,
+			Optional: optional,
+			DefaultStrFunc: func() (string, error) {
+				return c.Rocketchat.DefaultNotifyChannel, nil
+			},
+		},
+	})
+
 	return ret
 }
 
 func (ctx *CmdCtx) NewPrCommand() error {
-	if err := ctx.hasConfig(); err != nil {
+	if err := ctx.ValidateConfig(true); err != nil {
 		return err
 	}
 
@@ -505,10 +210,10 @@ func (ctx *CmdCtx) NewPrCommand() error {
 	}
 
 	repoCtx := gitea.RepoCtx{
-		Token:  ctx.Config.TokenSha1,
+		Token:  ctx.Config.Gitea.TokenSha1,
 		Owner:  owner,
 		Repo:   repo,
-		ApiUrl: ctx.Config.ToRepoApiUrl(),
+		ApiUrl: ctx.Config.Gitea.ToApiUrl(),
 	}
 	if err := repoCtx.Validate(); err != nil {
 		return err
@@ -527,6 +232,28 @@ func (ctx *CmdCtx) NewPrCommand() error {
 	}
 
 	fmt.Printf("%s\n", pr.Url)
+
+	if ctx.Config.Rocketchat.Enabled {
+		rctx := rocketchat.Ctx{
+			ApiUrl: ctx.Config.Rocketchat.ToApiUrl(),
+			UserID: ctx.Config.Rocketchat.UserID,
+			Token:  ctx.Config.Rocketchat.Token,
+		}
+
+		targetChan := opts[7].Val.Str
+
+		_, err = rctx.PostMessage(&rocketchat.PostMsgRequest{
+			Channel: targetChan,
+			Text: fmt.Sprintf(`
+			Im requesting review for PR: [%s](%s) 
+			Im merging branch *%s* into *%s*
+		`, pr.Title, pr.Url, head, base),
+		})
+
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -564,8 +291,8 @@ func findPr(repoCtx *gitea.RepoCtx, title string) (gitea.PullRequest, error) {
 	return gitea.PullRequest{}, fmt.Errorf("pr not found")
 }
 
-func mergePrOpts(config *common.Config) []CmdOpt {
-	opts := repoInfoOpts(config)
+func mergePrOpts(c *common.Config) []CmdOpt {
+	opts := repoInfoOpts(c)
 	opts = append(opts, findPrOpts()...)
 	opts = append(opts, CmdOpt{
 		Spec: CmdOptSpec{
@@ -585,12 +312,25 @@ func mergePrOpts(config *common.Config) []CmdOpt {
 			IsBool:   true,
 		},
 	})
+
+	optional := !c.Rocketchat.Enabled || c.Rocketchat.DefaultNotifyChannel != ""
+	opts = append(opts, CmdOpt{
+		Spec: CmdOptSpec{
+			ArgFlags: []string{"notify"},
+			Label:    "Notification channel for rocketchat",
+			NoPrompt: optional,
+			Optional: optional,
+			DefaultStrFunc: func() (string, error) {
+				return c.Rocketchat.DefaultNotifyChannel, nil
+			},
+		},
+	})
+
 	return opts
 }
 
 func (ctx *CmdCtx) MergePrCommand() error {
-
-	if err := ctx.hasConfig(); err != nil {
+	if err := ctx.ValidateConfig(true); err != nil {
 		return err
 	}
 
@@ -608,10 +348,10 @@ func (ctx *CmdCtx) MergePrCommand() error {
 	var err error
 
 	repoCtx := gitea.RepoCtx{
-		Token:  ctx.Config.TokenSha1,
+		Token:  ctx.Config.Gitea.TokenSha1,
 		Owner:  owner,
 		Repo:   repo,
-		ApiUrl: ctx.Config.ToRepoApiUrl(),
+		ApiUrl: ctx.Config.Gitea.ToApiUrl(),
 	}
 
 	fmt.Printf("merging pr with title: '%s'\n", title)
@@ -650,9 +390,32 @@ func (ctx *CmdCtx) MergePrCommand() error {
 	}
 
 	if rm {
-		return repoCtx.DeleteBranch(&gitea.DeleteBranchRequest{
+		if err := repoCtx.DeleteBranch(&gitea.DeleteBranchRequest{
 			Branch: pr.Head.Ref,
+		}); err != nil {
+			return err
+		}
+	}
+
+	if ctx.Config.Rocketchat.Enabled {
+		rctx := rocketchat.Ctx{
+			ApiUrl: ctx.Config.Rocketchat.ToApiUrl(),
+			UserID: ctx.Config.Rocketchat.UserID,
+			Token:  ctx.Config.Rocketchat.Token,
+		}
+
+		targetChan := opts[5].Val.Str
+
+		_, err = rctx.PostMessage(&rocketchat.PostMsgRequest{
+			Channel: targetChan,
+			Text: fmt.Sprintf(`
+			[%s](%s) (*%s* -> *%s*) has been merged
+		`, pr.Title, pr.Url, pr.Head.Ref, pr.Base.Ref),
 		})
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -688,8 +451,7 @@ func updatePrOpts(config *common.Config) []CmdOpt {
 }
 
 func (ctx *CmdCtx) ClosePrCommand() error {
-
-	if err := ctx.hasConfig(); err != nil {
+	if err := ctx.ValidateConfig(true); err != nil {
 		return err
 	}
 
@@ -708,10 +470,10 @@ func (ctx *CmdCtx) ClosePrCommand() error {
 	var err error
 
 	repoCtx := gitea.RepoCtx{
-		Token:  ctx.Config.TokenSha1,
+		Token:  ctx.Config.Gitea.TokenSha1,
 		Owner:  owner,
 		Repo:   repo,
-		ApiUrl: ctx.Config.ToRepoApiUrl(),
+		ApiUrl: ctx.Config.Gitea.ToApiUrl(),
 	}
 
 	fmt.Printf("updating pr with title: '%s'\n", title)
