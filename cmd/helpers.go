@@ -30,8 +30,8 @@ type CmdOptSpec struct {
 	ArgFlags []string
 	Label    string
 	// for arguments with values.
-	NotRequired    bool
-	DefaultStrFunc func() string
+	Optional       bool
+	DefaultStrFunc func() (string, error)
 	// password input
 	NoEcho bool
 	// flags without arguments
@@ -65,7 +65,7 @@ func FilterArgs(allArgs []string) []string {
 	return ret
 }
 
-func GetOpts(args []string, reqOpts []CmdOpt) {
+func GetOpts(args []string, reqOpts []CmdOpt) error {
 
 	flagHash := make(map[string]int)
 	opts := make([]string, 0, len(reqOpts))
@@ -176,16 +176,22 @@ func GetOpts(args []string, reqOpts []CmdOpt) {
 			reqOpts[i].Val.Str = tmp
 
 			// if still empty and was required - repeat
-			if !spec.IsBool && !spec.NotRequired && tmp == "" {
+			if !spec.IsBool && !spec.Optional && tmp == "" {
 				i--
 				continue
 			}
 		}
 
 		if tmp == "" && spec.DefaultStrFunc != nil {
-			reqOpts[i].Val.Str = spec.DefaultStrFunc()
+			var err error
+			reqOpts[i].Val.Str, err = spec.DefaultStrFunc()
+			if err != nil {
+				return err
+			}
 		}
 	}
+
+	return nil
 }
 
 // dbg

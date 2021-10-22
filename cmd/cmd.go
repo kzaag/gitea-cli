@@ -5,6 +5,8 @@ import (
 	"gitea-cli/config"
 	"gitea-cli/gitea"
 	"os"
+	"os/exec"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
@@ -24,10 +26,10 @@ func (ctx *CmdCtx) getRmConfigOpts() []CmdOpt {
 	return []CmdOpt{
 		{
 			Spec: CmdOptSpec{
-				Label:       s,
-				NotRequired: false,
-				NoEcho:      true,
-				IsBool:      false,
+				Label:    s,
+				Optional: false,
+				NoEcho:   true,
+				IsBool:   false,
 			},
 		},
 	}
@@ -75,48 +77,48 @@ var newConfigOpts = []CmdOpt{
 		Spec: CmdOptSpec{
 			ArgFlags: []string{"n", "name"},
 			Label:    "Token name (empty for rand)",
-			DefaultStrFunc: func() string {
-				return randStr(8)
+			DefaultStrFunc: func() (string, error) {
+				return randStr(8), nil
 			},
-			NotRequired: true,
+			Optional: true,
 		},
 	}, { // 4
 		Spec: CmdOptSpec{
-			ArgFlags:    []string{"V", "apiver"},
-			Label:       "Gitea api version, default v1",
-			NoPrompt:    true,
-			NotRequired: true,
-			DefaultStrFunc: func() string {
-				return "v1"
+			ArgFlags: []string{"V", "apiver"},
+			Label:    "Gitea api version, default v1",
+			NoPrompt: true,
+			Optional: true,
+			DefaultStrFunc: func() (string, error) {
+				return "v1", nil
 			},
 		},
 	}, { // 5
 		Spec: CmdOptSpec{
-			ArgFlags:    []string{"o", "owner"},
-			Label:       "Default repo owner (used in PRs) [empty if none]",
-			NotRequired: true,
+			ArgFlags: []string{"o", "owner"},
+			Label:    "Default repo owner (used in PRs) [empty if none]",
+			Optional: true,
 		},
 	}, { // 6
 		Spec: CmdOptSpec{
-			ArgFlags:    []string{"r", "repo"},
-			Label:       "Default repo name (used in PRs) [empty if none]",
-			NotRequired: true,
+			ArgFlags: []string{"r", "repo"},
+			Label:    "Default repo name (used in PRs) [empty if none]",
+			Optional: true,
 		},
 	}, { // 7
 		Spec: CmdOptSpec{
-			ArgFlags:    []string{"b", "base"},
-			Label:       "Default base branch (target branch in PRs) [empty if none]",
-			NotRequired: true,
+			ArgFlags: []string{"b", "base"},
+			Label:    "Default base branch (target branch in PRs) [empty if none]",
+			Optional: true,
 		},
 	}, { // 8
 		Spec: CmdOptSpec{
 			ArgFlags: []string{"p", "path"},
 			Label:    "Config path [empty for ./gitea.yml]",
 			NoPrompt: true,
-			DefaultStrFunc: func() string {
-				return "./gitea.yml"
+			DefaultStrFunc: func() (string, error) {
+				return "./gitea.yml", nil
 			},
-			NotRequired: true,
+			Optional: true,
 		},
 	},
 }
@@ -176,6 +178,182 @@ func (ctx *CmdCtx) NewConfigCommand() error {
 	return nil
 }
 
-func (ctx *CmdCtx) NewPrCommand() {
+func addOptWithDefaultVal(label, helptext string, flags []string, defaultValue string) CmdOpt {
+	var (
+		optional bool
+	)
 
+	if defaultValue != "" {
+		optional = true
+		label = fmt.Sprintf("%s [empty for: '%s']", label, defaultValue)
+	} else {
+		optional = false
+		if helptext != "" {
+			label = fmt.Sprintf("%s (%s)", label, helptext)
+		}
+		defaultValue = ""
+	}
+
+	return CmdOpt{
+		Spec: CmdOptSpec{
+			ArgFlags: flags,
+			Label:    label,
+			Optional: optional,
+			DefaultStrFunc: func() (string, error) {
+				return defaultValue, nil
+			},
+		},
+	}
+}
+
+func getBranch() string {
+	o, err := exec.Command("git", "branch", "--show-current").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(o))
+}
+
+func repoInfoOpts(config *config.Config) []CmdOpt {
+	ret := make([]CmdOpt, 0, 4)
+
+	var (
+		def string
+	)
+
+	// 0
+	def = ""
+	if config != nil && config.DefaultRepoOwner != "" {
+		def = config.DefaultRepoOwner
+	}
+	ret = append(ret, addOptWithDefaultVal("repo owner ", "", []string{"o", "owner"}, def))
+
+	// 1
+	def = ""
+	if config != nil && config.DefaultRepoName != "" {
+		def = config.DefaultRepoName
+	}
+	ret = append(ret, addOptWithDefaultVal("repo name  ", "", []string{"r", "repo"}, def))
+
+	return ret
+}
+
+func (ctx *CmdCtx) hasConfig() error {
+	if ctx.Config == nil {
+		return fmt.Errorf("config not found. Execute '%s new config' to create config", os.Args[0])
+	}
+	return nil
+}
+
+func listPrOpts(config *config.Config) []CmdOpt {
+	return repoInfoOpts(config)
+}
+
+func (ctx *CmdCtx) ListPrCommand() error {
+	if err := ctx.hasConfig(); err != nil {
+		return err
+	}
+
+	opts := listPrOpts(ctx.Config)
+	if err := GetOpts(os.Args[1:], opts); err != nil {
+		return err
+	}
+	owner := opts[0].Val.Str
+	repo := opts[1].Val.Str
+
+	repoCtx := gitea.RepoCtx{
+		Token:  ctx.Config.TokenSha1,
+		Owner:  owner,
+		Repo:   repo,
+		ApiUrl: ctx.Config.ToRepoApiUrl(),
+	}
+
+	req := gitea.ListPRRequest{}
+	req.State = "open"
+	prs, err := repoCtx.ListPR(&req)
+	if err != nil {
+		return err
+	}
+
+	for i := range prs {
+		fmt.Printf("PR: %s->%s index=%d, title=%s, user=%s, url=%s\n",
+			prs[i].Head.Ref, prs[i].Base.Ref,
+			prs[i].Number, prs[i].Title, prs[i].User.Login,
+			prs[i].Url)
+	}
+
+	return nil
+}
+
+func newPrOpts(config *config.Config) []CmdOpt {
+
+	ret := make([]CmdOpt, 0, 4)
+
+	var (
+		def string
+	)
+
+	// 0, 1
+	ret = append(ret, repoInfoOpts(config)...)
+
+	// 2
+	def = getBranch()
+	ret = append(ret, addOptWithDefaultVal("head branch", "source branch in PR", []string{"h", "head"}, def))
+
+	// 3
+	def = ""
+	if config != nil && config.DefaultBaseForMr != "" {
+		def = config.DefaultBaseForMr
+	}
+	ret = append(ret, addOptWithDefaultVal("base branch", "target branch in PR", []string{"b", "base"}, def))
+
+	// 4
+	ret = append(ret, addOptWithDefaultVal("pr title   ", "", []string{"t", "title"}, def))
+
+	return ret
+}
+
+func (ctx *CmdCtx) NewPrCommand() error {
+	if err := ctx.hasConfig(); err != nil {
+		return err
+	}
+
+	opts := newPrOpts(ctx.Config)
+	if err := GetOpts(os.Args[1:], opts); err != nil {
+		return err
+	}
+
+	owner := opts[0].Val.Str
+	repo := opts[1].Val.Str
+	head := opts[2].Val.Str
+	base := opts[3].Val.Str
+	title := opts[4].Val.Str
+
+	fmt.Printf("Creating pr for %s/%s %s->%s with title: '%s'\n", owner, repo, head, base, title)
+
+	repoCtx := gitea.RepoCtx{
+		Token:  ctx.Config.TokenSha1,
+		Owner:  owner,
+		Repo:   repo,
+		ApiUrl: ctx.Config.ToRepoApiUrl(),
+	}
+	if err := repoCtx.Validate(); err != nil {
+		return err
+	}
+
+	var req = gitea.CreatePRRequest{
+		Opt: gitea.CreatePullRequestOption{
+			Base:  base,
+			Head:  head,
+			Title: head,
+		},
+	}
+	pr, err := repoCtx.CreatePR(&req)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s\n", pr.Url)
+
+	return nil
 }

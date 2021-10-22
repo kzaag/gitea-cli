@@ -9,20 +9,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// func (ctx *CmdCtx) printUsageAndExit() {
-// 	ds := strings.Builder{}
-// 	var i = 0
-// 	for c := range ctx.Commands {
-// 		if i > 0 {
-// 			ds.WriteString(",")
-// 		}
-// 		ds.WriteString(c)
-// 		i++
-// 	}
-// 	fmt.Fprintf(os.Stderr, "USAGE: %s [%v] [help,...]\n", os.Args[0], ds.String())
-// 	os.Exit(1)
-// }
-
 func cleanup() {
 	s, err := unix.IoctlGetTermios(0, unix.TCGETS)
 	if err != nil {
@@ -55,6 +41,7 @@ func Run() {
 	go func() {
 		<-nc
 		cleanup()
+		fmt.Println()
 		os.Exit(0)
 	}()
 

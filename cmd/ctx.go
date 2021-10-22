@@ -67,13 +67,23 @@ func (ctx *CmdCtx) PrintCommands() {
 		g.Paths = append(g.Paths, c.Path)
 		gc[c.Command.Desc] = g
 	}
+	const indent = "  "
 
-	fmt.Print("Usage: \n\n")
+	fmt.Print("Manage gitea repository\n\n")
+
+	fmt.Printf("Usage: \n%s%s [options] [command]\n%s%s [command] [options]\n\n",
+		indent, os.Args[0], indent, os.Args[0])
+
+	fmt.Print("Commands:\n\n")
 
 	for c := range gc {
-		fmt.Println(c)
+		//fmt.Printf("%s%s\n%sUsage:\n", indent, c, strings.Repeat(indent, 2))
 		for i := range gc[c].Paths {
-			fmt.Printf("\t%s\n", gc[c].Paths[i])
+			fmt.Print(gc[c].Paths[i])
+			if i == len(gc[c].Paths)-1 {
+				fmt.Printf("  \t%s", c)
+			}
+			fmt.Println()
 		}
 
 		if gc[c].Command.Opts != nil {
@@ -84,7 +94,7 @@ func (ctx *CmdCtx) PrintCommands() {
 					continue
 				}
 				if i == 0 {
-					fmt.Println("Arguments:")
+					fmt.Printf("%sArguments:\n", indent)
 				}
 				for j := range o.Spec.ArgFlags {
 					os := o.Spec.ArgFlags[j]
@@ -103,7 +113,7 @@ func (ctx *CmdCtx) PrintCommands() {
 				fmt.Printf("\t%s\n", o.Spec.Label)
 			}
 		}
-		fmt.Print("\n\n")
+		fmt.Print("\n")
 	}
 }
 
@@ -130,14 +140,14 @@ func NewCtx() (*CmdCtx, error) {
 				return nil, err
 			}
 		}
-		fmt.Printf("Using config for user %s\n", cnf.Username)
+		//fmt.Printf("Using config for user %s\n", cnf.Username)
 		ctx.Config = cnf
 	}
 
 	root := Branch{}
 
 	root.AddChainAnyOrder(&Command{
-		Desc:    "Help",
+		Desc:    "",
 		Handler: ctx.HelpCommand,
 	}, "help")
 	root.AddChainAnyOrder(&Command{
@@ -150,6 +160,16 @@ func NewCtx() (*CmdCtx, error) {
 		Handler: ctx.NewConfigCommand,
 		Opts:    newConfigOpts,
 	}, "config", "new")
+	root.AddChainAnyOrder(&Command{
+		Desc:    "Create new pull request.",
+		Handler: ctx.NewPrCommand,
+		Opts:    newPrOpts(ctx.Config),
+	}, "pr", "new")
+	root.AddChainAnyOrder(&Command{
+		Desc:    "list open pull requests.",
+		Handler: ctx.ListPrCommand,
+		Opts:    listPrOpts(ctx.Config),
+	}, "pr", "list")
 
 	ctx.CommandRoot = root
 
