@@ -6,6 +6,7 @@ import (
 	"gitea-cli/gitea"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v2"
@@ -287,7 +288,7 @@ func (ctx *CmdCtx) ListPrCommand() error {
 
 func newPrOpts(config *config.Config) []CmdOpt {
 
-	ret := make([]CmdOpt, 0, 4)
+	ret := make([]CmdOpt, 0, 7)
 
 	var (
 		def string
@@ -310,6 +311,26 @@ func newPrOpts(config *config.Config) []CmdOpt {
 	// 4
 	ret = append(ret, addOptWithDefaultVal("pr title   ", "", []string{"t", "title"}, def))
 
+	// 5
+	ret = append(ret, CmdOpt{
+		Spec: CmdOptSpec{
+			ArgFlags: []string{"w", "wip"},
+			Label:    "work in progress [default: false]",
+			NoPrompt: true,
+			IsBool:   true,
+		},
+	})
+
+	// 6
+	ret = append(ret, CmdOpt{
+		Spec: CmdOptSpec{
+			ArgFlags: []string{"d", "dry"},
+			Label:    "dry run [default: false]",
+			NoPrompt: true,
+			IsBool:   true,
+		},
+	})
+
 	return ret
 }
 
@@ -328,8 +349,18 @@ func (ctx *CmdCtx) NewPrCommand() error {
 	head := opts[2].Val.Str
 	base := opts[3].Val.Str
 	title := opts[4].Val.Str
+	wip := opts[5].Val.Bool
+	dry := opts[6].Val.Bool
+
+	if wip {
+		title = "WIP: " + title
+	}
 
 	fmt.Printf("Creating pr for %s/%s %s->%s with title: '%s'\n", owner, repo, head, base, title)
+
+	if dry {
+		return nil
+	}
 
 	repoCtx := gitea.RepoCtx{
 		Token:  ctx.Config.TokenSha1,
@@ -354,6 +385,61 @@ func (ctx *CmdCtx) NewPrCommand() error {
 	}
 
 	fmt.Printf("%s\n", pr.Url)
+
+	return nil
+}
+
+func mergePrOpts(config *config.Config) []CmdOpt {
+	opts := repoInfoOpts(config)
+
+	// 2
+	opts = append(opts, CmdOpt{
+		Spec: CmdOptSpec{
+			ArgFlags: []string{"i", "index"},
+			Label:    "PR index",
+			Optional: false,
+		},
+	})
+
+	return opts
+}
+
+func (ctx *CmdCtx) MergePrCommand() error {
+
+	if err := ctx.hasConfig(); err != nil {
+		return err
+	}
+
+	opts := mergePrOpts(ctx.Config)
+	if err := GetOpts(os.Args[1:], opts); err != nil {
+		return err
+	}
+
+	owner := opts[0].Val.Str
+	repo := opts[1].Val.Str
+	index := opts[2].Val.Str
+
+	indexInt, err := strconv.Atoi(index)
+	if err != nil {
+		return err
+	}
+
+	repoCtx := gitea.RepoCtx{
+		Token:  ctx.Config.TokenSha1,
+		Owner:  owner,
+		Repo:   repo,
+		ApiUrl: ctx.Config.ToRepoApiUrl(),
+	}
+	mergeReq := gitea.MergePRRequest{
+		Opt: gitea.MergePullRequestOption{
+			Do:         "squash",
+			ForceMerge: true,
+		},
+		Index: indexInt,
+	}
+	if err := repoCtx.MergePR(&mergeReq); err != nil {
+		return err
+	}
 
 	return nil
 }

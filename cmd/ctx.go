@@ -150,26 +150,31 @@ func NewCtx() (*CmdCtx, error) {
 		Desc:    "",
 		Handler: ctx.HelpCommand,
 	}, "help")
-	root.AddChainAnyOrder(&Command{
+	root.AddChainStrictOrder(&Command{
 		Desc:    "Delete local config with its token.",
 		Handler: ctx.RmConfigCommand,
 		Opts:    ctx.getRmConfigOpts(),
-	}, "config", "rm")
-	root.AddChainAnyOrder(&Command{
+	}, "rm", "config")
+	root.AddChainStrictOrder(&Command{
 		Desc:    "Create new config.",
 		Handler: ctx.NewConfigCommand,
 		Opts:    newConfigOpts,
-	}, "config", "new")
-	root.AddChainAnyOrder(&Command{
+	}, "new", "config")
+	root.AddChainStrictOrder(&Command{
 		Desc:    "Create new pull request.",
 		Handler: ctx.NewPrCommand,
 		Opts:    newPrOpts(ctx.Config),
-	}, "pr", "new")
-	root.AddChainAnyOrder(&Command{
+	}, "new", "pr")
+	root.AddChainStrictOrder(&Command{
 		Desc:    "list open pull requests.",
 		Handler: ctx.ListPrCommand,
 		Opts:    listPrOpts(ctx.Config),
-	}, "pr", "list")
+	}, "list", "pr")
+	root.AddChainStrictOrder(&Command{
+		Desc:    "Merge existing pull request",
+		Handler: ctx.MergePrCommand,
+		Opts:    mergePrOpts(ctx.Config),
+	}, "merge", "pr")
 
 	ctx.CommandRoot = root
 
