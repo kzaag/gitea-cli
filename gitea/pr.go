@@ -75,3 +75,28 @@ func (ctx *RepoCtx) MergePR(r *MergePRRequest) error {
 	var u = fmt.Sprintf("%s/repos/%s/%s/pulls/%d/merge", ctx.ApiUrl, ctx.Owner, ctx.Repo, r.Index)
 	return GiteaRequest(m, u, &r.Opt, nil, hdr, 200)
 }
+
+type PrState string
+
+const (
+	Open   PrState = "open"
+	Closed PrState = "closed"
+)
+
+type EditPullRequestOption struct {
+	State PrState
+	Title string
+}
+
+type UpdatePrRequest struct {
+	Index int
+	Opt   EditPullRequestOption
+}
+
+func (ctx *RepoCtx) UpdatePR(r *UpdatePrRequest) error {
+	const m = "PATCH"
+	hdr := make(http.Header)
+	hdr.Add("Authorization", "token "+ctx.Token)
+	var u = fmt.Sprintf("%s/repos/%s/%s/pulls/%d", ctx.ApiUrl, ctx.Owner, ctx.Repo, r.Index)
+	return GiteaRequest(m, u, &r.Opt, nil, hdr, 201)
+}
