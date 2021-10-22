@@ -3,4 +3,4 @@ build:
 	go build -o bin/gitea
 
 install: build
-	sudo cp gitea /usr/local/bin/;
+	sudo cp bin/gitea /usr/local/bin/;
