@@ -158,7 +158,7 @@ func NewCtx() (*CmdCtx, error) {
 	root.AddChainStrictOrder(&Command{
 		Desc:    "Create new config.",
 		Handler: ctx.NewConfigCommand,
-		Opts:    newConfigOpts,
+		Opts:    newConfigOpts(ctx.Config),
 	}, "new", "config")
 	root.AddChainStrictOrder(&Command{
 		Desc:    "Create new pull request.",
@@ -175,6 +175,11 @@ func NewCtx() (*CmdCtx, error) {
 		Handler: ctx.MergePrCommand,
 		Opts:    mergePrOpts(ctx.Config),
 	}, "merge", "pr")
+	root.AddChainStrictOrder(&Command{
+		Desc:    "Close existing pull request",
+		Handler: ctx.ClosePrCommand,
+		Opts:    updatePrOpts(ctx.Config),
+	}, "update", "pr")
 
 	ctx.CommandRoot = root
 
