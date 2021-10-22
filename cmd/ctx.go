@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"gitea-cli/config"
+	"gitea-cli/common"
 	"io/ioutil"
 	"os"
 
@@ -19,7 +19,7 @@ type Command struct {
 
 type CmdCtx struct {
 	CommandRoot Branch
-	Config      *config.Config
+	Config      *common.Config
 }
 
 type commandPathInfo struct {
@@ -127,11 +127,12 @@ func NewCtx() (*CmdCtx, error) {
 			return nil, err
 		}
 	} else {
-		cnf := new(config.Config)
+		cnf := new(common.Config)
 		if err := yaml.Unmarshal(fc, cnf); err != nil {
 			return nil, err
 		}
 		if err := cnf.Validate(); err != nil {
+			fmt.Println(err)
 			fmt.Println("Your config is out of date. You should create it again")
 			fmt.Print("Continue anyway? y/n ")
 			var x string
@@ -156,7 +157,7 @@ func NewCtx() (*CmdCtx, error) {
 		Opts:    ctx.getRmConfigOpts(),
 	}, "rm", "config")
 	root.AddChainStrictOrder(&Command{
-		Desc:    "Create new config.",
+		Desc:    "Create new common.",
 		Handler: ctx.NewConfigCommand,
 		Opts:    newConfigOpts(ctx.Config),
 	}, "new", "config")

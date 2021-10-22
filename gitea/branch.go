@@ -2,6 +2,7 @@ package gitea
 
 import (
 	"fmt"
+	"gitea-cli/common"
 	"net/http"
 )
 
@@ -14,5 +15,5 @@ func (ctx *RepoCtx) DeleteBranch(r *DeleteBranchRequest) error {
 	hdr := make(http.Header)
 	hdr.Add("Authorization", "token "+ctx.Token)
 	var u = fmt.Sprintf("%s/repos/%s/%s/branches/%s", ctx.ApiUrl, ctx.Owner, ctx.Repo, r.Branch)
-	return GiteaRequest(m, u, nil, nil, hdr, 204)
+	return common.HttpRequest(m, u, nil, nil, hdr, 204)
 }

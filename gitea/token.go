@@ -3,7 +3,7 @@ package gitea
 import (
 	"encoding/base64"
 	"fmt"
-	"gitea-cli/config"
+	"gitea-cli/common"
 	"net/http"
 )
 
@@ -15,7 +15,7 @@ type TokenRequest struct {
 	Username string
 	Password string
 	TokenRequestBody
-	config.RepoInfo
+	common.GiteaRepoInfo
 }
 
 func (c *TokenRequest) ToBasicAuth() string {
@@ -29,7 +29,7 @@ func (c *TokenRequest) Validate() error {
 	if c.Username == "" || c.Password == "" {
 		return fmt.Errorf("invalid username or password")
 	}
-	return c.RepoInfo.Validate()
+	return c.GiteaRepoInfo.Validate()
 }
 
 type Token struct {
@@ -44,14 +44,14 @@ func (c *TokenRequest) GetToken() (*Token, error) {
 	const m = "POST"
 	hdr := make(http.Header)
 	hdr.Add("Authorization", c.ToBasicAuth())
-	var u = fmt.Sprintf("%s/users/%s/tokens", c.RepoInfo.ToRepoApiUrl(), c.Username)
-	return token, GiteaRequest(m, u, &c.TokenRequestBody, token, hdr, 201)
+	var u = fmt.Sprintf("%s/users/%s/tokens", c.GiteaRepoInfo.ToRepoApiUrl(), c.Username)
+	return token, common.HttpRequest(m, u, &c.TokenRequestBody, token, hdr, 201)
 }
 
 func (c *TokenRequest) DeleteToken(name string) error {
 	const m = "DELETE"
 	hdr := make(http.Header)
 	hdr.Add("Authorization", c.ToBasicAuth())
-	var u = fmt.Sprintf("%s/users/%s/tokens/%s", c.RepoInfo.ToRepoApiUrl(), c.Username, name)
-	return GiteaRequest(m, u, nil, nil, hdr, 204)
+	var u = fmt.Sprintf("%s/users/%s/tokens/%s", c.GiteaRepoInfo.ToRepoApiUrl(), c.Username, name)
+	return common.HttpRequest(m, u, nil, nil, hdr, 204)
 }

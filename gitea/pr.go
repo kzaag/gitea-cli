@@ -2,6 +2,7 @@ package gitea
 
 import (
 	"fmt"
+	"gitea-cli/common"
 	"net/http"
 )
 
@@ -30,7 +31,7 @@ func (ctx *RepoCtx) ListPR(r *ListPRRequest) ([]PullRequest, error) {
 	hdr.Add("Authorization", "token "+ctx.Token)
 	var u = fmt.Sprintf("%s/repos/%s/%s/pulls?state=%s", ctx.ApiUrl, ctx.Owner, ctx.Repo, r.State)
 	var res []PullRequest
-	return res, GiteaRequest(m, u, nil, &res, hdr, 200)
+	return res, common.HttpRequest(m, u, nil, &res, hdr, 200)
 }
 
 type CreatePullRequestOption struct {
@@ -55,7 +56,7 @@ func (ctx *RepoCtx) CreatePR(r *CreatePRRequest) (*PullRequest, error) {
 	hdr.Add("Authorization", "token "+ctx.Token)
 	var u = fmt.Sprintf("%s/repos/%s/%s/pulls", ctx.ApiUrl, ctx.Owner, ctx.Repo)
 	var res = new(PullRequest)
-	return res, GiteaRequest(m, u, &r.Opt, res, hdr, 201)
+	return res, common.HttpRequest(m, u, &r.Opt, res, hdr, 201)
 }
 
 type MergePullRequestOption struct {
@@ -73,7 +74,7 @@ func (ctx *RepoCtx) MergePR(r *MergePRRequest) error {
 	hdr := make(http.Header)
 	hdr.Add("Authorization", "token "+ctx.Token)
 	var u = fmt.Sprintf("%s/repos/%s/%s/pulls/%d/merge", ctx.ApiUrl, ctx.Owner, ctx.Repo, r.Index)
-	return GiteaRequest(m, u, &r.Opt, nil, hdr, 200)
+	return common.HttpRequest(m, u, &r.Opt, nil, hdr, 200)
 }
 
 type PrState string
@@ -98,5 +99,5 @@ func (ctx *RepoCtx) UpdatePR(r *UpdatePrRequest) error {
 	hdr := make(http.Header)
 	hdr.Add("Authorization", "token "+ctx.Token)
 	var u = fmt.Sprintf("%s/repos/%s/%s/pulls/%d", ctx.ApiUrl, ctx.Owner, ctx.Repo, r.Index)
-	return GiteaRequest(m, u, &r.Opt, nil, hdr, 201)
+	return common.HttpRequest(m, u, &r.Opt, nil, hdr, 201)
 }
