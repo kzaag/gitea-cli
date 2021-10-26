@@ -245,8 +245,7 @@ func (ctx *CmdCtx) NewPrCommand() error {
 		_, err = rctx.PostMessage(&rocketchat.PostMsgRequest{
 			Channel: targetChan,
 			Text: fmt.Sprintf(`
-			Im requesting review for PR: [%s](%s) 
-			Im merging branch *%s* into *%s*
+			Requesting review for PR: [%s](%s) (*%s* -> *%s*) 
 		`, pr.Title, pr.Url, head, base),
 		})
 
