@@ -22,3 +22,5 @@ rocketchat:
   remote_info:
     api_ver: v1
     base_url: https://
+
+  default_header: 

@@ -66,7 +66,8 @@ type Rocketchat struct {
 
 	UserID               string `yaml:"user_id"`
 	Token                string `yaml:"token"`
-	DefaultNotifyChannel string `yaml:"channel"`
+	DefaultNotifyChannel string `yaml:"default_notify_channel"`
+	DefaultHeader        string `yaml:"default_header"`
 }
 
 func (c *Rocketchat) validationErr(msg string) error {

@@ -174,6 +174,28 @@ func newPrOpts(c *common.Config) []CmdOpt {
 		},
 	})
 
+	// 8
+	ret = append(ret, CmdOpt{
+		Spec: CmdOptSpec{
+			ArgFlags: []string{"n", "nohdr"},
+			Label:    "dont use default_header field from config [default: false]",
+			NoPrompt: true,
+			IsBool:   true,
+		},
+	})
+
+	// 9
+	ret = append(ret, CmdOpt{
+		Spec: CmdOptSpec{
+			ArgFlags: []string{"f", "footer"},
+			Label:    "text below message [default: empty]",
+			NoPrompt: true,
+			DefaultStrFunc: func() (string, error) {
+				return "", nil
+			},
+		},
+	})
+
 	return ret
 }
 
@@ -242,11 +264,23 @@ func (ctx *CmdCtx) NewPrCommand() error {
 
 		targetChan := opts[7].Val.Str
 
+		noHdr := opts[8].Val.Bool
+		msg := ""
+
+		if ctx.Config.Rocketchat.DefaultHeader != "" && !noHdr {
+			msg += ctx.Config.Rocketchat.DefaultHeader
+		}
+
+		msg += fmt.Sprintf(`Requesting review for PR: [%s](%s) (*%s* -> *%s*)`, pr.Title, pr.Url, head, base)
+
+		footer := opts[9].Val.Str
+		if footer != "" {
+			msg += fmt.Sprintf("\n%s", footer)
+		}
+
 		_, err = rctx.PostMessage(&rocketchat.PostMsgRequest{
 			Channel: targetChan,
-			Text: fmt.Sprintf(`
-			Requesting review for PR: [%s](%s) (*%s* -> *%s*) 
-		`, pr.Title, pr.Url, head, base),
+			Text:    msg,
 		})
 
 		if err != nil {
