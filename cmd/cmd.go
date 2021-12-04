@@ -196,7 +196,52 @@ func newPrOpts(c *common.Config) []CmdOpt {
 		},
 	})
 
+	// 10
+	ret = append(ret, CmdOpt{
+		Spec: CmdOptSpec{
+			ArgFlags: []string{"m", "merge"},
+			Label:    "merge right after creation [default: false]",
+			NoPrompt: true,
+			IsBool:   true,
+		},
+	})
+
 	return ret
+}
+
+func (ctx *CmdCtx) notifyRocketchatAboutPr(prOpts []CmdOpt, pr *gitea.PullRequest, head, base string, merged bool) error {
+	rctx := rocketchat.Ctx{
+		ApiUrl: ctx.Config.Rocketchat.ToApiUrl(),
+		UserID: ctx.Config.Rocketchat.UserID,
+		Token:  ctx.Config.Rocketchat.Token,
+	}
+
+	targetChan := prOpts[7].Val.Str
+
+	noHdr := prOpts[8].Val.Bool
+	msg := ""
+
+	if ctx.Config.Rocketchat.DefaultHeader != "" && !noHdr {
+		msg += ctx.Config.Rocketchat.DefaultHeader
+	}
+
+	if merged {
+		msg += fmt.Sprintf("Creating and Merging PR: [%s](%s) (*%s* -> *%s*)", pr.Title, pr.Url, head, base)
+	} else {
+		msg += fmt.Sprintf(`Requesting review for PR: [%s](%s) (*%s* -> *%s*)`, pr.Title, pr.Url, head, base)
+	}
+
+	footer := prOpts[9].Val.Str
+	if footer != "" {
+		msg += fmt.Sprintf("\n%s", footer)
+	}
+
+	_, err := rctx.PostMessage(&rocketchat.PostMsgRequest{
+		Channel: targetChan,
+		Text:    msg,
+	})
+
+	return err
 }
 
 func (ctx *CmdCtx) NewPrCommand() error {
@@ -255,37 +300,33 @@ func (ctx *CmdCtx) NewPrCommand() error {
 
 	fmt.Printf("%s\n", pr.Url)
 
-	if ctx.Config.Rocketchat.Enabled {
-		rctx := rocketchat.Ctx{
-			ApiUrl: ctx.Config.Rocketchat.ToApiUrl(),
-			UserID: ctx.Config.Rocketchat.UserID,
-			Token:  ctx.Config.Rocketchat.Token,
+	mergeNow := opts[10].Val.Bool
+	if mergeNow {
+		mergeReq := gitea.MergePRRequest{
+			Opt: gitea.MergePullRequestOption{
+				Do:         "squash",
+				ForceMerge: true,
+			},
+			Index: pr.Number,
 		}
-
-		targetChan := opts[7].Val.Str
-
-		noHdr := opts[8].Val.Bool
-		msg := ""
-
-		if ctx.Config.Rocketchat.DefaultHeader != "" && !noHdr {
-			msg += ctx.Config.Rocketchat.DefaultHeader
-		}
-
-		msg += fmt.Sprintf(`Requesting review for PR: [%s](%s) (*%s* -> *%s*)`, pr.Title, pr.Url, head, base)
-
-		footer := opts[9].Val.Str
-		if footer != "" {
-			msg += fmt.Sprintf("\n%s", footer)
-		}
-
-		_, err = rctx.PostMessage(&rocketchat.PostMsgRequest{
-			Channel: targetChan,
-			Text:    msg,
-		})
-
-		if err != nil {
+		if err := repoCtx.MergePR(&mergeReq); err != nil {
 			return err
 		}
+		if err := repoCtx.DeleteBranch(&gitea.DeleteBranchRequest{
+			Branch: pr.Head.Ref,
+		}); err != nil {
+			return err
+		}
+
+		if ctx.Config.Rocketchat.Enabled {
+			return ctx.notifyRocketchatAboutPr(opts, pr, head, base, true)
+		}
+
+		return nil
+	}
+
+	if ctx.Config.Rocketchat.Enabled {
+		return ctx.notifyRocketchatAboutPr(opts, pr, head, base, false)
 	}
 
 	return nil
